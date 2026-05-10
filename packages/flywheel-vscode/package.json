@@ -4,7 +4,6 @@
   "description": "Visualize Flywheel knowledge graphs with Obsidian-grade fluidity, repo filtering, live updates, and semantic search.",
   "version": "0.1.0",
   "publisher": "cerovazs",
-  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/CerovazS/flywheel-vscode.git"
