@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "npm: build - packages/flywheel-vscode",
+      "type": "shell",
+      "command": "pnpm --filter flywheel-vscode build",
+      "group": "build",
+      "presentation": { "reveal": "silent", "panel": "dedicated" },
+      "problemMatcher": ["$tsc"]
+    }
+  ]
+}

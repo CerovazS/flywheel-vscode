@@ -1,0 +1,27 @@
+{
+  "name": "flywheel-core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Runtime-agnostic Flywheel client, graph diff, and search index. Pure TS, no VS Code deps.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./client": "./dist/client/index.js",
+    "./graph": "./dist/graph/index.js",
+    "./search": "./dist/search/index.js",
+    "./repo": "./dist/repo/index.js",
+    "./protocol": "./dist/protocol.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist *.tsbuildinfo",
+    "smoke": "tsx scripts/smoke-list-nodes.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "rimraf": "^6.0.1"
+  }
+}

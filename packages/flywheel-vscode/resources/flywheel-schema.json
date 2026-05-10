@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Flywheel workspace config",
+  "description": "Per-repo configuration for the Flywheel VS Code extension. Place this file at the workspace root as `.flywheel.json` to pin a graph and skip the prompt.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "rootNodeId": {
+      "type": "string",
+      "description": "Slug (e.g. `lemon-zebra-0042`) or UUID of the node to load as the graph root. Required for auto-open."
+    },
+    "repoFilter": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, the graph is filtered to nodes whose repo matches the workspace's git remote."
+    },
+    "autoOpenGraph": {
+      "type": "boolean",
+      "default": false,
+      "description": "Pop the graph panel automatically when this workspace opens. Off by default to respect the user's screen state."
+    }
+  }
+}

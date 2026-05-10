@@ -1,0 +1,23 @@
+{
+  "name": "flywheel-vscode-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Flywheel knowledge-graph viewer for VS Code (and future CLI/TUI).",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r clean",
+    "smoke": "pnpm --filter flywheel-core smoke",
+    "package": "pnpm --filter flywheel-vscode package"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "tsx": "^4.19.2",
+    "@types/node": "^22.9.0"
+  },
+  "packageManager": "pnpm@11.0.9"
+}

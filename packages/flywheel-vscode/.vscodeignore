@@ -1,0 +1,21 @@
+.vscode/**
+.vscode-test/**
+src/**
+**/*.map
+**/*.ts
+**/tsconfig*.json
+**/esbuild.config.mjs
+**/vite.config.ts
+node_modules/.cache/**
+node_modules/.bin/**
+# Prune dev-only packages but keep runtime native modules.
+node_modules/typescript/**
+node_modules/esbuild/**
+node_modules/vite/**
+node_modules/@vitejs/**
+# Keep what we need at runtime:
+!node_modules/flywheel-core/**
+!node_modules/better-sqlite3/**
+!node_modules/sqlite-vec/**
+!node_modules/bindings/**
+!node_modules/file-uri-to-path/**

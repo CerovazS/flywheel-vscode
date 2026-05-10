@@ -1,0 +1,9 @@
+{
+  "name": "flywheel-cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Phase-2 placeholder: standalone CLI/TUI for Flywheel graph navigation.",
+  "scripts": {
+    "build": "echo \"flywheel-cli: phase-2 placeholder\""
+  }
+}

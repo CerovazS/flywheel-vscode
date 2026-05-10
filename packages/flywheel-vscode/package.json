@@ -1,0 +1,177 @@
+{
+  "name": "flywheel-vscode",
+  "displayName": "Flywheel",
+  "description": "Visualize Flywheel knowledge graphs with Obsidian-grade fluidity, repo filtering, live updates, and semantic search.",
+  "version": "0.1.0",
+  "publisher": "cerovazs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CerovazS/flywheel-vscode.git"
+  },
+  "homepage": "https://github.com/CerovazS/flywheel-vscode#readme",
+  "bugs": {
+    "url": "https://github.com/CerovazS/flywheel-vscode/issues"
+  },
+  "keywords": [
+    "flywheel",
+    "knowledge graph",
+    "obsidian",
+    "visualization",
+    "cosmograph",
+    "semantic search"
+  ],
+  "engines": {
+    "vscode": "^1.94.0",
+    "node": ">=20"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "main": "./dist/extension.cjs",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "flywheel.openGraph",
+        "title": "Flywheel: Open Graph"
+      },
+      {
+        "command": "flywheel.filterByRepo",
+        "title": "Flywheel: Filter by Current Repo"
+      },
+      {
+        "command": "flywheel.searchSemantic",
+        "title": "Flywheel: Semantic Search…"
+      },
+      {
+        "command": "flywheel.openNodeBySlug",
+        "title": "Flywheel: Open Node by Slug…"
+      },
+      {
+        "command": "flywheel.openNodeById",
+        "title": "Flywheel: Open Node by ID"
+      },
+      {
+        "command": "flywheel.reindexAll",
+        "title": "Flywheel: Reindex Search Database"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": ".flywheel.json",
+        "url": "./resources/flywheel-schema.json"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "flywheel",
+          "title": "Flywheel",
+          "icon": "$(graph)"
+        }
+      ]
+    },
+    "views": {
+      "flywheel": [
+        {
+          "id": "flywheel.miniGraph",
+          "name": "Mini Graph",
+          "type": "webview"
+        },
+        {
+          "id": "flywheel.sessions",
+          "name": "Active Sessions",
+          "type": "tree"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Flywheel",
+      "properties": {
+        "flywheel.token": {
+          "type": "string",
+          "default": "",
+          "description": "Bearer token for Flywheel MCP. If empty, falls back to ~/.claude.json mcpServers.flywheel.headers.Authorization."
+        },
+        "flywheel.mcpUrl": {
+          "type": "string",
+          "default": "https://flywheel.paradigma.inc/mcp-server",
+          "description": "Flywheel MCP server URL."
+        },
+        "flywheel.pollIntervalMs": {
+          "type": "number",
+          "default": 2000,
+          "minimum": 500,
+          "description": "Polling interval (ms) for live graph updates."
+        },
+        "flywheel.embeddingBackend": {
+          "type": "string",
+          "enum": [
+            "ollama-qwen3"
+          ],
+          "default": "ollama-qwen3",
+          "description": "Embedding backend for semantic search."
+        },
+        "flywheel.ollamaUrl": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Ollama server URL."
+        },
+        "flywheel.defaultRootNodeId": {
+          "type": "string",
+          "default": "",
+          "description": "Default root node to load when opening the graph (slug or UUID). Leave empty to prompt."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "pnpm run build:webview && pnpm run build:host",
+    "build:host": "node esbuild.config.mjs",
+    "build:webview": "vite build",
+    "preview": "vite",
+    "watch": "node esbuild.config.mjs --watch",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.webview.json",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@cosmograph/cosmos": "2.0.0-beta.20",
+    "better-sqlite3": "^12.9.0",
+    "flywheel-core": "workspace:*",
+    "katex": "^0.16.45",
+    "rehype-callouts": "^2.1.2",
+    "rehype-katex": "^7.0.1",
+    "rehype-stringify": "^10.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "remark-wiki-link": "^2.0.1",
+    "sqlite-vec": "^0.1.9",
+    "unified": "^11.0.5",
+    "vscode-messenger": "^0.5.0",
+    "vscode-messenger-common": "^0.5.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/mdast": "^4.0.4",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/vscode": "^1.94.0",
+    "@vitejs/plugin-react": "^4.3.3",
+    "esbuild": "^0.27.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "rimraf": "^6.0.1",
+    "vite": "^5.4.10",
+    "vscode-messenger-webview": "^0.5.0",
+    "zustand": "^5.0.1"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+out/
+*.tsbuildinfo
+.DS_Store
+*.vsix
+.vscode-test/
+.vite/
+# Claude Code session artefacts (local-only state).
+.claude/
+# Editor state we don't ship with the repo.
+.idea/

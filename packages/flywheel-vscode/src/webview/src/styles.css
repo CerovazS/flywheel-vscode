@@ -1,0 +1,562 @@
+/*
+ * Webview-shared styles. Loaded once for all views (graph + node-detail + mini-graph).
+ *
+ * - KaTeX font CSS is imported here so math typesetting works.
+ * - rehype-callouts default theme styles cover the [!info]/[!warning]/etc. boxes.
+ *   We override their tint behaviour: the shipped theme assumes a `.dark`
+ *   class on a parent and a light document background, neither of which we
+ *   have inside a VS Code webview. Instead we set both background and
+ *   accent to explicit rgba values per callout type, which renders as a
+ *   semi-transparent tinted box with a coloured left bar — Obsidian style.
+ */
+
+@import 'katex/dist/katex.min.css';
+@import 'rehype-callouts/theme/obsidian';
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+}
+
+body {
+  font-family: var(--vscode-font-family, system-ui, sans-serif);
+  font-size: 13px;
+}
+
+a {
+  color: var(--vscode-textLink-foreground, #4daafc);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ───── Graph overlays ───── */
+
+.flywheel-node-label {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-shadow:
+    0 0 6px rgba(0, 0, 0, 0.9),
+    0 0 2px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  user-select: none;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Anchor variants. We anchor labels by their LEFT edge (`data-anchor=left`)
+ * for nodes on the left half of the canvas, by their RIGHT edge for the
+ * right half, and centered otherwise. This guarantees long titles never
+ * spill past the visible viewport. */
+.flywheel-node-label[data-anchor='left'] {
+  transform: translate(10px, -50%);
+  text-align: left;
+}
+.flywheel-node-label[data-anchor='right'] {
+  transform: translate(calc(-100% - 10px), -50%);
+  text-align: right;
+}
+.flywheel-node-label[data-anchor='center'] {
+  transform: translate(-50%, 14px);
+  text-align: center;
+}
+
+.flywheel-mini-label {
+  position: absolute;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--vscode-foreground, #ddd);
+  text-shadow:
+    0 0 4px rgba(0, 0, 0, 0.9),
+    0 0 2px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  user-select: none;
+  max-width: 130px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flywheel-mini-label[data-anchor='left'] {
+  transform: translate(8px, -50%);
+  text-align: left;
+}
+.flywheel-mini-label[data-anchor='right'] {
+  transform: translate(calc(-100% - 8px), -50%);
+  text-align: right;
+}
+.flywheel-mini-label[data-anchor='center'] {
+  transform: translate(-50%, 12px);
+  text-align: center;
+}
+
+.flywheel-mini-label--center {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff3b0;
+}
+
+.flywheel-hover-card {
+  position: absolute;
+  max-width: 320px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(20, 20, 24, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+  color: var(--vscode-foreground, #ddd);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.flywheel-hover-card__title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  color: #fff;
+}
+
+.flywheel-hover-card__slug {
+  font-size: 11px;
+  opacity: 0.55;
+  margin-bottom: 6px;
+}
+
+.flywheel-hover-card__tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.flywheel-hover-card__tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.flywheel-hover-card__summary {
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0.85;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ───── Markdown rendered body ───── */
+
+.flywheel-md h1,
+.flywheel-md h2,
+.flywheel-md h3 {
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.flywheel-md h1 {
+  font-size: 1.7em;
+  border-bottom: 1px solid var(--vscode-panel-border, #333);
+  padding-bottom: 0.2em;
+}
+.flywheel-md h2 {
+  font-size: 1.35em;
+}
+.flywheel-md h3 {
+  font-size: 1.15em;
+}
+
+.flywheel-md p {
+  margin: 0.7em 0;
+}
+
+.flywheel-md code {
+  background: var(--vscode-textBlockQuote-background, #2a2a2a);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.92em;
+  font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
+}
+
+.flywheel-md pre {
+  background: var(--vscode-textBlockQuote-background, #1e1e1e);
+  padding: 12px 14px;
+  border-radius: 6px;
+  overflow-x: auto;
+  border: 1px solid var(--vscode-panel-border, #2a2a2a);
+}
+
+.flywheel-md pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.95em;
+}
+
+.flywheel-md blockquote {
+  border-left: 3px solid var(--vscode-textBlockQuote-border, #525252);
+  padding: 4px 12px;
+  color: var(--vscode-textBlockQuote-foreground);
+  margin: 1em 0;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.flywheel-md mark {
+  background: rgba(255, 213, 92, 0.22);
+  color: #ffd35c;
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+.flywheel-md table {
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.flywheel-md th,
+.flywheel-md td {
+  border: 1px solid var(--vscode-panel-border, #333);
+  padding: 6px 10px;
+}
+
+.flywheel-md th {
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 600;
+}
+
+.flywheel-md img {
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+.flywheel-md hr {
+  border: none;
+  border-top: 1px solid var(--vscode-panel-border, #333);
+  margin: 2em 0;
+}
+
+.flywheel-md ul,
+.flywheel-md ol {
+  padding-left: 1.4em;
+}
+
+.flywheel-md li {
+  margin: 0.25em 0;
+}
+
+/* ───── Obsidian callouts (rehype-callouts) ─────
+ *
+ * Default behaviour: a `.callout` element is wrapped around the blockquote
+ * and given `data-callout='<type>'`. We restyle every type to use an
+ * explicit rgba background tint + a coloured left bar + matching border, so
+ * the result reads as a semi-transparent tinted box on the dark VS Code
+ * surface (matching Obsidian's own dark theme).
+ */
+
+.flywheel-md .callout {
+  /* Override the upstream blend-mode + relative-color-syntax tricks
+   * unconditionally — the !important guards against any future reordering
+   * or specificity surprises (the upstream rule still uses `.callout`
+   * un-prefixed). The result reads as a tinted box on the dark VS Code
+   * background. */
+  mix-blend-mode: normal !important;
+  background-color: var(--rc-bg, rgba(150, 150, 150, 0.1)) !important;
+  border: 1px solid var(--rc-border, rgba(150, 150, 150, 0.3)) !important;
+  border-left: 4px solid var(--rc-accent, #888) !important;
+  padding: 12px 14px 12px 16px !important;
+  border-radius: 6px !important;
+  margin: 1em 0 !important;
+  color: var(--vscode-foreground, #ddd) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.flywheel-md .callout-title {
+  color: var(--rc-accent, #aaa) !important;
+  font-weight: 600;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px 0;
+  display: flex;
+}
+
+.flywheel-md .callout-title-text {
+  color: inherit;
+}
+
+.flywheel-md .callout-content {
+  color: var(--vscode-foreground, #ddd);
+}
+
+.flywheel-md .callout-content > :first-child {
+  margin-top: 0;
+}
+.flywheel-md .callout-content > :last-child {
+  margin-bottom: 0;
+}
+
+.flywheel-md .callout-title-icon svg,
+.flywheel-md .callout-fold-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Per-callout palette. Values mirror Obsidian's dark theme.
+ * --rc-accent: solid colour used for the title text + left bar.
+ * --rc-bg:     same hue at ~12% alpha (background tint).
+ * --rc-border: same hue at ~32% alpha (subtle outline).
+ */
+
+.flywheel-md [data-callout='note'],
+.flywheel-md [data-callout='info'],
+.flywheel-md [data-callout='todo'] {
+  --rc-accent: rgb(82, 156, 250);
+  --rc-bg: rgba(82, 156, 250, 0.12);
+  --rc-border: rgba(82, 156, 250, 0.32);
+}
+.flywheel-md [data-callout='abstract'],
+.flywheel-md [data-callout='summary'],
+.flywheel-md [data-callout='tldr'],
+.flywheel-md [data-callout='tip'],
+.flywheel-md [data-callout='hint'],
+.flywheel-md [data-callout='important'] {
+  --rc-accent: rgb(83, 223, 221);
+  --rc-bg: rgba(83, 223, 221, 0.13);
+  --rc-border: rgba(83, 223, 221, 0.32);
+}
+.flywheel-md [data-callout='success'],
+.flywheel-md [data-callout='check'],
+.flywheel-md [data-callout='done'] {
+  --rc-accent: rgb(94, 221, 124);
+  --rc-bg: rgba(94, 221, 124, 0.12);
+  --rc-border: rgba(94, 221, 124, 0.32);
+}
+.flywheel-md [data-callout='question'],
+.flywheel-md [data-callout='help'],
+.flywheel-md [data-callout='faq'],
+.flywheel-md [data-callout='warning'],
+.flywheel-md [data-callout='attention'],
+.flywheel-md [data-callout='caution'] {
+  --rc-accent: rgb(245, 175, 85);
+  --rc-bg: rgba(245, 175, 85, 0.13);
+  --rc-border: rgba(245, 175, 85, 0.32);
+}
+.flywheel-md [data-callout='failure'],
+.flywheel-md [data-callout='missing'],
+.flywheel-md [data-callout='fail'],
+.flywheel-md [data-callout='danger'],
+.flywheel-md [data-callout='error'],
+.flywheel-md [data-callout='bug'] {
+  --rc-accent: rgb(251, 95, 100);
+  --rc-bg: rgba(251, 95, 100, 0.13);
+  --rc-border: rgba(251, 95, 100, 0.32);
+}
+.flywheel-md [data-callout='example'] {
+  --rc-accent: rgb(168, 130, 255);
+  --rc-bg: rgba(168, 130, 255, 0.13);
+  --rc-border: rgba(168, 130, 255, 0.32);
+}
+.flywheel-md [data-callout='quote'],
+.flywheel-md [data-callout='cite'] {
+  --rc-accent: rgb(170, 170, 170);
+  --rc-bg: rgba(170, 170, 170, 0.1);
+  --rc-border: rgba(170, 170, 170, 0.28);
+}
+
+/* ───── Node detail edit mode ───── */
+
+.flywheel-node-detail__toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.flywheel-btn {
+  font: inherit;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  background: var(--vscode-button-background, #2a3950);
+  color: var(--vscode-button-foreground, #fff);
+  cursor: pointer;
+}
+
+.flywheel-btn:hover {
+  background: var(--vscode-button-hoverBackground, #34507a);
+}
+
+.flywheel-btn--ghost {
+  background: transparent;
+  border-color: var(--vscode-panel-border, #333);
+  color: var(--vscode-foreground);
+}
+
+.flywheel-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.flywheel-edit-textarea {
+  width: 100%;
+  min-height: 60vh;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  border: 1px solid var(--vscode-panel-border, #333);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.flywheel-edit-status {
+  font-size: 11px;
+  opacity: 0.75;
+  margin-left: 8px;
+}
+
+.flywheel-edit-status--error {
+  color: #ff7b7b;
+  opacity: 1;
+}
+
+/* ───── Graph legend panel ─────
+ * Floating list on the right edge of the graph view. The number of entries
+ * tracks the camera zoom (low zoom → only hubs; high zoom → all nodes), so
+ * the panel acts as a granularity-aware index of what's on screen. Each
+ * entry's text is coloured the same as its node, giving a one-glance
+ * mapping between the dot on the canvas and the title in the list.
+ */
+.flywheel-legend {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: 240px;
+  max-height: calc(100% - 24px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(20, 20, 24, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  font-size: 11.5px;
+  pointer-events: auto;
+  z-index: 5;
+  overflow: hidden;
+}
+
+.flywheel-legend--collapsed {
+  width: 32px;
+}
+
+.flywheel-legend__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.flywheel-legend__title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flywheel-legend__toggle {
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground, #ddd);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 3px;
+  opacity: 0.7;
+}
+.flywheel-legend__toggle:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.flywheel-legend__list {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  /* Custom scrollbar to match the muted palette. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.flywheel-legend__list::-webkit-scrollbar {
+  width: 6px;
+}
+.flywheel-legend__list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+}
+
+.flywheel-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.flywheel-legend__item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.flywheel-legend__item--active {
+  background: rgba(255, 243, 176, 0.08);
+  box-shadow: inset 2px 0 0 #fff3b0;
+}
+
+.flywheel-legend__dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+.flywheel-legend__name {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
