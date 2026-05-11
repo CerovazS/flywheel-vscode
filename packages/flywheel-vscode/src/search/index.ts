@@ -10,15 +10,15 @@
  *   - `search(query, k)` returns top-k chunks ordered by similarity.
  *
  * Native module note: better-sqlite3 + sqlite-vec require a binary that
- * matches the host Node ABI. In the VS Code Extension Development Host this
- * is the bundled Node, not Electron. If the prebuilt binary doesn't match,
- * run `pnpm --filter flywheel-vscode rebuild better-sqlite3`.
+ * matches the host Node ABI. They are loaded LAZILY inside the constructor
+ * via `require()` so the bundled extension can activate without them — only
+ * the semantic-search commands fail (with a clear error) if the natives
+ * aren't available. The graph viewer, markdown viewer, and edit-save all
+ * keep working.
  */
 
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import Database, { type Database as Db } from 'better-sqlite3';
-import * as sqliteVec from 'sqlite-vec';
 import {
   type FlywheelNode,
   SCHEMA_SQL,
@@ -27,6 +27,25 @@ import {
 } from 'flywheel-core';
 import { chunkNode, type Chunk } from './chunker.js';
 import { OllamaClient } from './ollama.js';
+
+// Minimal ambient types so we don't have to pull better-sqlite3 into the
+// build at compile-time. We model only the surface we actually call. Native
+// objects from `require('better-sqlite3')` satisfy this structurally.
+interface DbStatement<TParams extends unknown[] = unknown[], TRow = unknown> {
+  run(...params: TParams): { changes: number; lastInsertRowid: number | bigint };
+  all(...params: TParams): TRow[];
+  get(...params: TParams): TRow | undefined;
+}
+interface Db {
+  prepare<TParams extends unknown[] = unknown[], TRow = unknown>(
+    sql: string,
+  ): DbStatement<TParams, TRow>;
+  exec(sql: string): void;
+  pragma(name: string): void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  transaction<T extends (...args: any[]) => any>(fn: T): T;
+  close(): void;
+}
 
 export interface IndexerOptions {
   dbPath: string;
@@ -47,11 +66,40 @@ interface SearchRow extends ChunkRow {
   distance: number;
 }
 
+/**
+ * Resolve the two native modules at call time. If either fails to load,
+ * surface a single actionable error message to the caller.
+ */
+function loadNativeDeps(): {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Database: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sqliteVec: any;
+} {
+  try {
+    /* eslint-disable @typescript-eslint/no-require-imports */
+    // Bracket-notation `require` keeps esbuild from trying to bundle these
+    // (they're already in the `external` list, but this also defends against
+    // any future config drift). They stay as runtime `require()` calls.
+    const Database = require('better-sqlite3');
+    const sqliteVec = require('sqlite-vec');
+    /* eslint-enable @typescript-eslint/no-require-imports */
+    return { Database: Database.default ?? Database, sqliteVec };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Flywheel: semantic search needs native modules that aren't installed in the packaged extension. ` +
+        `Build from source (see docs/development.md) to use search. Underlying error: ${msg}`,
+    );
+  }
+}
+
 export class SearchIndex {
   private readonly db: Db;
   private readonly ollama: OllamaClient;
 
   constructor(opts: IndexerOptions) {
+    const { Database, sqliteVec } = loadNativeDeps();
     fs.mkdirSync(path.dirname(opts.dbPath), { recursive: true });
     this.db = new Database(opts.dbPath);
     sqliteVec.load(this.db);
