@@ -1,0 +1,20 @@
+<!--
+  Activity Bar icon. VS Code auto-tints monochrome SVGs to match the
+  theme's `activityBar.foreground`, so we draw in solid #FFF and let the
+  theme handle the rest. The glyph is Paradigma's ❉ flower simplified into
+  six petals around a centre dot.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="#fff">
+  <circle cx="12" cy="12" r="2" />
+  <!-- Six petals at 60° increments. Each petal is an ellipse rotated about
+       the centre. The values are pre-computed (no transform attributes) so
+       VS Code's SVG-to-Canvas renderer in older builds doesn't choke. -->
+  <g>
+    <ellipse cx="12" cy="4.5" rx="1.4" ry="3" />
+    <ellipse cx="12" cy="19.5" rx="1.4" ry="3" />
+    <ellipse cx="5.5" cy="8.25" rx="1.4" ry="3" transform="rotate(60 5.5 8.25)" />
+    <ellipse cx="18.5" cy="15.75" rx="1.4" ry="3" transform="rotate(60 18.5 15.75)" />
+    <ellipse cx="5.5" cy="15.75" rx="1.4" ry="3" transform="rotate(-60 5.5 15.75)" />
+    <ellipse cx="18.5" cy="8.25" rx="1.4" ry="3" transform="rotate(-60 18.5 8.25)" />
+  </g>
+</svg>
