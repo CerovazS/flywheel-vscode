@@ -109,8 +109,9 @@ a:hover {
 
 .flywheel-hover-card {
   position: absolute;
-  max-width: 320px;
-  padding: 8px 10px;
+  max-width: 460px;
+  min-width: 280px;
+  padding: 10px 12px;
   border-radius: 8px;
   background: rgba(20, 20, 24, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -152,9 +153,10 @@ a:hover {
 
 .flywheel-hover-card__summary {
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.5;
   opacity: 0.85;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 5;
   line-clamp: 5;
@@ -162,12 +164,39 @@ a:hover {
   overflow: hidden;
 }
 
+/* TL;DR variant: the source guarantees ≤4 lines so we drop the clamp and
+   let the natural wrap of the wider card breathe. */
 .flywheel-hover-card__summary--tldr {
   opacity: 1;
   border-left: 2px solid #335c67;
-  padding: 4px 0 4px 8px;
-  margin-top: 2px;
+  padding: 6px 0 6px 10px;
+  margin-top: 4px;
   color: var(--vscode-foreground, #eee);
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+}
+
+.flywheel-hover-card__summary--tldr strong {
+  font-weight: 700;
+  color: #fff;
+}
+
+.flywheel-hover-card__summary--tldr mark {
+  background: #fff3b0;
+  color: #1c1b19;
+  padding: 0 3px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+.flywheel-hover-card__summary--tldr code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
 }
 
 .flywheel-hover-card__tldr-label {
@@ -176,7 +205,7 @@ a:hover {
   font-weight: 700;
   letter-spacing: 0.04em;
   color: #335c67;
-  margin-right: 6px;
+  margin-right: 8px;
   text-transform: none;
 }
 

@@ -14,7 +14,7 @@
  * positioning sits below the node.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Graph, type GraphConfigInterface } from '@cosmograph/cosmos';
 import type { FlywheelEdge, FlywheelNode } from 'flywheel-core/client';
 import { normalizeRepoUrl } from 'flywheel-core/repo';
@@ -103,6 +103,29 @@ interface HoverState {
 }
 
 const HOVER_DELAY_MS = 280;
+
+// Render a single line of inline markdown into React nodes. Covers the three
+// markers used inside a TL;DR callout: **bold**, ==highlight==, `code`. Plain
+// text passes through unchanged. We do this by hand instead of pulling in a
+// markdown parser because the TL;DR is one short paragraph and the preview
+// must stay snappy.
+function renderInline(text: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  const re = /(\*\*[^*\n]+\*\*|==[^=\n]+==|`[^`\n]+`)/g;
+  let cursor = 0;
+  let key = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > cursor) out.push(text.slice(cursor, m.index));
+    const tok = m[0];
+    if (tok.startsWith('**')) out.push(<strong key={`b${key++}`}>{tok.slice(2, -2)}</strong>);
+    else if (tok.startsWith('==')) out.push(<mark key={`h${key++}`}>{tok.slice(2, -2)}</mark>);
+    else out.push(<code key={`c${key++}`}>{tok.slice(1, -1)}</code>);
+    cursor = m.index + tok.length;
+  }
+  if (cursor < text.length) out.push(text.slice(cursor));
+  return out;
+}
 
 // Extract the `> [!summary] TL;DR` Obsidian callout body from a markdown blob.
 // Accepts the `TL;DR` label (any case, with/without the trailing punctuation)
@@ -629,7 +652,7 @@ function NodePreview({ node, x, y }: { node: FlywheelNode; x: number; y: number 
           }
         >
           {tldr ? <span className="flywheel-hover-card__tldr-label">TL;DR</span> : null}
-          {body}
+          {tldr ? renderInline(body) : body}
         </div>
       ) : null}
     </div>
