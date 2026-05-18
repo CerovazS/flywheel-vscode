@@ -8,11 +8,17 @@
 
 import * as vscode from 'vscode';
 import { GraphPanel } from './panels/GraphPanel.js';
-import { loadWorkspaceConfig } from './workspaceConfig.js';
+import { loadWorkspaceConfig, loadWorkspaceEnv } from './workspaceConfig.js';
 
 let item: vscode.StatusBarItem | undefined;
 let timer: ReturnType<typeof setInterval> | null = null;
-let configCache: { hasFile: boolean; rootNodeId?: string } = { hasFile: false };
+type ConfigSource = 'flywheel.json' | '.env';
+let configCache: {
+  hasFile: boolean;
+  rootNodeId?: string;
+  rootNodeTitle?: string;
+  source?: ConfigSource;
+} = { hasFile: false };
 
 export function installStatusBar(context: vscode.ExtensionContext): void {
   item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -43,7 +49,20 @@ export function installStatusBar(context: vscode.ExtensionContext): void {
 async function refreshConfigCache(): Promise<void> {
   const { config } = await loadWorkspaceConfig();
   if (config?.rootNodeId) {
-    configCache = { hasFile: true, rootNodeId: config.rootNodeId };
+    configCache = { hasFile: true, rootNodeId: config.rootNodeId, source: 'flywheel.json' };
+    refresh();
+    return;
+  }
+  // Fall back to .env — the same priority order as resolveActiveRootRef().
+  const { env } = await loadWorkspaceEnv();
+  const envRef = env?.rootNodeId ?? env?.rootNodeSlug;
+  if (envRef) {
+    configCache = {
+      hasFile: true,
+      rootNodeId: envRef,
+      ...(env?.rootNodeTitle ? { rootNodeTitle: env.rootNodeTitle } : {}),
+      source: '.env',
+    };
   } else {
     configCache = { hasFile: false };
   }
@@ -57,11 +76,16 @@ function refresh(): void {
     if (configCache.hasFile && configCache.rootNodeId) {
       // We have a configured target but the graph isn't open yet — invite
       // the user to open it with one click.
-      item.text = `$(graph) Flywheel: open ${configCache.rootNodeId}`;
-      item.tooltip = `Click to open the graph rooted at "${configCache.rootNodeId}" (from .flywheel.json).`;
+      const label = configCache.rootNodeTitle ?? configCache.rootNodeId;
+      const src = configCache.source ?? 'config';
+      item.text = `$(graph) Flywheel: open ${label}`;
+      item.tooltip = `Click to open the graph rooted at "${configCache.rootNodeId}"${
+        configCache.rootNodeTitle ? ` — ${configCache.rootNodeTitle}` : ''
+      } (from ${src}).`;
     } else {
       item.text = '$(graph) Flywheel: idle';
-      item.tooltip = 'Flywheel — click to open graph (set rootNodeId in .flywheel.json to skip the prompt).';
+      item.tooltip =
+        'Flywheel — click to open graph (set rootNodeId in .flywheel.json or FLYWHEEL_ROOT_NODE_ID in .env to skip the prompt).';
     }
     item.backgroundColor = undefined;
     return;

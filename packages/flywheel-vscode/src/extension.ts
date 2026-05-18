@@ -11,6 +11,7 @@ import { getSearchIndex } from './search/manager.js';
 import { installStatusBar } from './statusBar.js';
 import {
   loadWorkspaceConfig,
+  loadWorkspaceEnv,
   resolveActiveRootRef,
   watchWorkspaceConfig,
 } from './workspaceConfig.js';
@@ -33,7 +34,8 @@ function getClient(): FlywheelMcpClient {
 }
 
 async function pickRootNodeRef(): Promise<string | undefined> {
-  // Priority: .flywheel.json (per-repo) → user setting → input prompt.
+  // Priority: .flywheel.json (per-repo) → .env (FLYWHEEL_ROOT_NODE_ID/SLUG)
+  //         → user setting → input prompt.
   const fromWorkspace = await resolveActiveRootRef();
   if (fromWorkspace) return fromWorkspace;
   return vscode.window.showInputBox({
@@ -190,19 +192,32 @@ export function activate(context: vscode.ExtensionContext): void {
 
   installStatusBar(context);
 
-  // Per-repo bootstrap. If the workspace has a `.flywheel.json` with
-  // `autoOpenGraph: true`, open the graph in the background — silently if
-  // anything fails so we don't nag on every startup.
+  // Per-repo bootstrap. Open the graph automatically when the workspace asks
+  // for it — either via `.flywheel.json` (`autoOpenGraph: true`) or via the
+  // user-level `flywheel.autoOpenFromEnv` setting honouring `.env`.
+  // Silent on any failure so we don't nag on every startup.
   void (async () => {
     try {
       const { config } = await loadWorkspaceConfig();
-      if (!config?.rootNodeId || !config.autoOpenGraph) return;
-      await openGraphForWorkspace(
-        context,
-        miniGraph,
-        config.rootNodeId,
-        config.repoFilter ?? true,
-      );
+      if (config?.rootNodeId && config.autoOpenGraph) {
+        await openGraphForWorkspace(
+          context,
+          miniGraph,
+          config.rootNodeId,
+          config.repoFilter ?? true,
+        );
+        return;
+      }
+      const autoFromEnv = vscode.workspace
+        .getConfiguration('flywheel')
+        .get<boolean>('autoOpenFromEnv');
+      if (autoFromEnv) {
+        const { env } = await loadWorkspaceEnv();
+        const ref = env?.rootNodeId ?? env?.rootNodeSlug;
+        if (ref) {
+          await openGraphForWorkspace(context, miniGraph, ref, true);
+        }
+      }
     } catch (err) {
       console.warn('[flywheel] auto-open failed:', err);
     }
@@ -212,7 +227,7 @@ export function activate(context: vscode.ExtensionContext): void {
     watchWorkspaceConfig(() => {
       // Surface that the config changed; don't auto-reload — too disruptive.
       void vscode.window.showInformationMessage(
-        'Flywheel: .flywheel.json changed — reload the graph to apply.',
+        'Flywheel: workspace config changed (.flywheel.json or .env) — reload the graph to apply.',
       );
     }),
   );

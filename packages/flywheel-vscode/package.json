@@ -2,7 +2,7 @@
   "name": "flywheel-vscode",
   "displayName": "Flywheel",
   "description": "Visualize Flywheel knowledge graphs with Obsidian-grade fluidity, repo filtering, live updates, and semantic search.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "cerovazs",
   "icon": "media/icon.png",
   "repository": {
@@ -127,7 +127,12 @@
         "flywheel.defaultRootNodeId": {
           "type": "string",
           "default": "",
-          "description": "Default root node to load when opening the graph (slug or UUID). Leave empty to prompt."
+          "description": "Fallback root node (slug or UUID) when no `.flywheel.json` or `.env` is found in the workspace. Resolution order: .flywheel.json `rootNodeId` → .env `FLYWHEEL_ROOT_NODE_ID` (UUID, preferred) or `FLYWHEEL_ROOT_NODE_SLUG` → this setting → prompt."
+        },
+        "flywheel.autoOpenFromEnv": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically open the graph on workspace start when the repo's `.env` declares `FLYWHEEL_ROOT_NODE_ID` (or `FLYWHEEL_ROOT_NODE_SLUG`). Off by default to respect screen state; mirrors `.flywheel.json autoOpenGraph` for repos that prefer `.env`."
         }
       }
     }
