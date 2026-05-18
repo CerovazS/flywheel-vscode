@@ -162,6 +162,24 @@ a:hover {
   overflow: hidden;
 }
 
+.flywheel-hover-card__summary--tldr {
+  opacity: 1;
+  border-left: 2px solid #335c67;
+  padding: 4px 0 4px 8px;
+  margin-top: 2px;
+  color: var(--vscode-foreground, #eee);
+}
+
+.flywheel-hover-card__tldr-label {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #335c67;
+  margin-right: 6px;
+  text-transform: none;
+}
+
 /* ───── Markdown rendered body ───── */
 
 .flywheel-md h1,

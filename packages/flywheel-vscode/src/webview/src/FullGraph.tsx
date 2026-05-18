@@ -102,6 +102,36 @@ interface HoverState {
   screenY: number;
 }
 
+const HOVER_DELAY_MS = 280;
+
+// Extract the `> [!summary] TL;DR` Obsidian callout body from a markdown blob.
+// Accepts the `TL;DR` label (any case, with/without the trailing punctuation)
+// and the legacy `Bottom Line` label so older nodes still preview cleanly.
+// Returns the concatenated body lines or null if no matching callout exists.
+function extractTldr(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i]!.match(/^>\s*\[!summary\](?:\s+(.*))?$/i);
+    if (!m) continue;
+    const label = (m[1] ?? '').trim();
+    // Skip [!summary] callouts with a different label so we don't grab e.g.
+    // a stray "Highlights" callout from elsewhere in the body.
+    if (label && !/^(tl;?dr|bottom line)$/i.test(label)) continue;
+    const body: string[] = [];
+    let j = i + 1;
+    while (j < lines.length) {
+      const cont = lines[j]!.match(/^>\s?(.*)$/);
+      if (!cont) break;
+      body.push(cont[1] ?? '');
+      j += 1;
+    }
+    const joined = body.join('\n').trim();
+    if (joined) return joined;
+  }
+  return null;
+}
+
 interface RenderedLabel {
   id: string;
   title: string;
@@ -116,6 +146,7 @@ export function FullGraph() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<Graph | null>(null);
   const buffersRef = useRef<Buffers | null>(null);
+  const hoverTimerRef = useRef<number | null>(null);
   const [hover, setHover] = useState<HoverState | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [labels, setLabels] = useState<RenderedLabel[]>([]);
@@ -239,9 +270,22 @@ export function FullGraph() {
         const wy = buf.positions[2 * index + 1];
         if (wx === undefined || wy === undefined) return;
         const [sx, sy] = g.spaceToScreenPosition([wx, wy]);
-        setHover({ index, screenX: sx, screenY: sy });
+        // Defer showing the preview so quick fly-bys don't flash a card.
+        if (hoverTimerRef.current !== null) {
+          window.clearTimeout(hoverTimerRef.current);
+        }
+        hoverTimerRef.current = window.setTimeout(() => {
+          hoverTimerRef.current = null;
+          setHover({ index, screenX: sx, screenY: sy });
+        }, HOVER_DELAY_MS);
       },
-      onPointMouseOut: () => setHover(null),
+      onPointMouseOut: () => {
+        if (hoverTimerRef.current !== null) {
+          window.clearTimeout(hoverTimerRef.current);
+          hoverTimerRef.current = null;
+        }
+        setHover(null);
+      },
       onZoom: () => {
         const g = graphRef.current;
         if (g) {
@@ -260,6 +304,10 @@ export function FullGraph() {
     ro.observe(containerRef.current);
     return () => {
       ro.disconnect();
+      if (hoverTimerRef.current !== null) {
+        window.clearTimeout(hoverTimerRef.current);
+        hoverTimerRef.current = null;
+      }
       graphRef.current?.destroy();
       graphRef.current = null;
     };
@@ -542,8 +590,12 @@ function LegendPanel({
 
 function NodePreview({ node, x, y }: { node: FlywheelNode; x: number; y: number }) {
   const tags = node.graph_tags ?? [];
-  const summary =
-    (node.summary ?? '').trim() || (node.content ?? '').slice(0, 220).trim();
+  // Prefer the explicit TL;DR callout (mandated by the Flywheel logging style).
+  // Fall back to the raw summary field, then to the head of the body, so older
+  // nodes without a TL;DR still preview something useful.
+  const tldr = extractTldr(node.content) ?? extractTldr(node.summary);
+  const body =
+    tldr ?? ((node.summary ?? '').trim() || (node.content ?? '').slice(0, 220).trim());
   return (
     <div
       className="flywheel-hover-card"
@@ -569,7 +621,17 @@ function NodePreview({ node, x, y }: { node: FlywheelNode; x: number; y: number 
           ))}
         </div>
       ) : null}
-      {summary ? <div className="flywheel-hover-card__summary">{summary}</div> : null}
+      {body ? (
+        <div
+          className={
+            'flywheel-hover-card__summary' +
+            (tldr ? ' flywheel-hover-card__summary--tldr' : '')
+          }
+        >
+          {tldr ? <span className="flywheel-hover-card__tldr-label">TL;DR</span> : null}
+          {body}
+        </div>
+      ) : null}
     </div>
   );
 }
