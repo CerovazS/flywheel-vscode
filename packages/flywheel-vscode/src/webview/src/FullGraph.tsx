@@ -165,6 +165,47 @@ interface RenderedLabel {
   anchor: 'left' | 'right' | 'center';
 }
 
+interface RenderedRing {
+  id: string;
+  /** screen-space centre */
+  x: number;
+  y: number;
+  /** ring radius (distance from centre to stroke centreline), in screen pixels */
+  radius: number;
+  /** stroke thickness, screen pixels */
+  strokeWidth: number;
+  /** one entry per tag, in tag order; arcs are drawn at 360°/N spans */
+  tags: Array<{ color: string }>;
+}
+
+/** Convert (centre, radius, angle in degrees) to a cartesian point. 0° points
+ *  to the right; we rotate by -90 elsewhere so the first arc starts at the top. */
+function polarToCartesian(
+  cx: number,
+  cy: number,
+  r: number,
+  angleDeg: number,
+): [number, number] {
+  const rad = (angleDeg * Math.PI) / 180;
+  return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+}
+
+/** Build an SVG arc path between two angles (degrees, clockwise from top). */
+function arcPath(
+  cx: number,
+  cy: number,
+  r: number,
+  startAngleDeg: number,
+  endAngleDeg: number,
+): string {
+  const [sx, sy] = polarToCartesian(cx, cy, r, startAngleDeg - 90);
+  const [ex, ey] = polarToCartesian(cx, cy, r, endAngleDeg - 90);
+  const sweep = endAngleDeg - startAngleDeg;
+  const largeArc = sweep > 180 ? 1 : 0;
+  // sweep-flag=1 for clockwise (we render angles increasing clockwise from top).
+  return `M ${sx} ${sy} A ${r} ${r} 0 ${largeArc} 1 ${ex} ${ey}`;
+}
+
 export function FullGraph() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<Graph | null>(null);
@@ -173,6 +214,7 @@ export function FullGraph() {
   const [hover, setHover] = useState<HoverState | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [labels, setLabels] = useState<RenderedLabel[]>([]);
+  const [rings, setRings] = useState<RenderedRing[]>([]);
   const nodes = useStore((s) => s.graph.nodes);
   const edgeList = useStore((s) => s.graph.edgeList);
   const repoFilter = useStore((s) => s.ui.repoFilter);
@@ -203,12 +245,14 @@ export function FullGraph() {
     const container = containerRef.current;
     if (!g || !buf || !container) {
       setLabels([]);
+      setRings([]);
       return;
     }
     const nodesMap = filteredNodesRef.current;
     const w = container.clientWidth || 1;
     const k = zoomLevelRef.current;
     const out: RenderedLabel[] = [];
+    const outRings: RenderedRing[] = [];
     // Visibility heuristic: at default zoom show only hubs + selected, at high
     // zoom show everyone. Always show the selected node's label.
     const showAll = k >= 1.4 || buf.ids.length <= 40;
@@ -216,18 +260,40 @@ export function FullGraph() {
       const id = buf.ids[i]!;
       const isSelected = id === selectedIdRef.current;
       const deg = buf.degrees[i] ?? 0;
-      if (!isSelected && !showAll) {
-        // Skip leaves at low zoom to keep the canvas readable.
-        if (deg < 2) continue;
-      }
       const wx = buf.positions[2 * i]!;
       const wy = buf.positions[2 * i + 1]!;
       const [sx, sy] = g.spaceToScreenPosition([wx, wy]);
-      // Skip labels that fell entirely off-screen (a sanity guard for any
+      // Skip overlays that fell entirely off-screen (a sanity guard for any
       // transient state where the camera hasn't settled yet).
       if (!Number.isFinite(sx) || !Number.isFinite(sy)) continue;
       const node = nodesMap.get(id);
       if (!node) continue;
+
+      // Tag ring overlay — one arc per assigned tag (paint a full coloured
+      // border so the tag is visible even when the node fill is light, e.g.
+      // the cream `root` tag). Multi-tag nodes split the ring into equal arcs.
+      const assignedTags = node.graph_tags ?? [];
+      if (assignedTags.length > 0) {
+        const dotSize = buf.sizes[i] ?? 6;
+        // cosmos draws points at `size * zoom` screen pixels (diameter) with
+        // scalePointsOnZoom=true. Approximate the on-screen radius and pad
+        // slightly so the ring sits just outside the dot.
+        const screenRadius = (dotSize * k) / 2;
+        outRings.push({
+          id,
+          x: sx,
+          y: sy,
+          radius: screenRadius + 4,
+          strokeWidth: 3,
+          tags: assignedTags.map((t) => ({ color: t.bg_color ?? '#888' })),
+        });
+      }
+
+      // Label visibility / placement — runs after the ring is logged so that
+      // the ring is always drawn even when the label is suppressed.
+      if (!isSelected && !showAll) {
+        if (deg < 2) continue;
+      }
       const r = buf.colors[4 * i]!;
       const gC = buf.colors[4 * i + 1]!;
       const b = buf.colors[4 * i + 2]!;
@@ -245,6 +311,7 @@ export function FullGraph() {
       });
     }
     setLabels(out);
+    setRings(outRings);
   };
 
   // Stable refresh fn for callbacks.
@@ -414,9 +481,10 @@ export function FullGraph() {
     return filteredNodes.get(id) ?? null;
   }, [hover, filteredNodes]);
 
-  // Build the legend entries (right-side panel). Granularity scales with
-  // zoom: zoomed out → only hubs (top by degree), zoomed in → all nodes.
-  // Each entry carries the node's own colour so the panel reads as a colour
+  // Build the legend entries (right-side panel). Every node in the filtered
+  // view is listed, alphabetically — the panel is meant to be a complete
+  // index of what's on the canvas, scrollable when the list is long. Each
+  // entry carries the node's own colour so the panel reads as a colour
   // legend that maps directly to the canvas dots.
   const legend = useMemo(() => {
     const buf = buffersRef.current;
@@ -429,13 +497,6 @@ export function FullGraph() {
     }>;
     const total = buf.ids.length;
     if (total === 0) return [];
-    // Zoom-driven granularity:
-    //   z ≤ 0.5 → ~12 entries (just the hubs)
-    //   z ≥ 1.6 → all
-    const k = Math.max(0.3, zoomLevel);
-    const target = Math.round(
-      Math.min(total, 12 + (Math.max(0, k - 0.5) / 1.1) * (total - 12)),
-    );
     const entries: Array<{
       id: string;
       title: string;
@@ -458,15 +519,11 @@ export function FullGraph() {
         index: i,
       });
     }
-    entries.sort((a, b) => {
-      if (a.degree !== b.degree) return b.degree - a.degree;
-      return a.title.localeCompare(b.title);
-    });
-    const truncated = entries.slice(0, target);
-    truncated.sort((a, b) => a.title.localeCompare(b.title));
-    return truncated;
-    // labelTick is intentionally omitted — degrees only change with topology.
-  }, [filteredNodes, zoomLevel, labels]);
+    entries.sort((a, b) => a.title.localeCompare(b.title));
+    return entries;
+    // `labels` is included in deps as a proxy: it changes after the
+    // buffers are rebuilt, ensuring this memo runs against a fresh buf.
+  }, [filteredNodes, labels]);
 
   // Legend → canvas highlighting. When the user hovers a panel entry we
   // focus the corresponding node and dye its ring with the node's own
@@ -514,6 +571,50 @@ export function FullGraph() {
           overflow: 'hidden',
         }}
       >
+        <svg
+          className="flywheel-tag-rings"
+          xmlns="http://www.w3.org/2000/svg"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            overflow: 'visible',
+          }}
+        >
+          {rings.map((r) =>
+            r.tags.length === 1 ? (
+              <circle
+                key={r.id}
+                cx={r.x}
+                cy={r.y}
+                r={r.radius}
+                fill="none"
+                stroke={r.tags[0]!.color}
+                strokeWidth={r.strokeWidth}
+              />
+            ) : (
+              <g key={r.id}>
+                {r.tags.map((tag, i) => {
+                  const span = 360 / r.tags.length;
+                  const start = i * span;
+                  const end = start + span;
+                  return (
+                    <path
+                      key={`${r.id}-${i}`}
+                      d={arcPath(r.x, r.y, r.radius, start, end)}
+                      fill="none"
+                      stroke={tag.color}
+                      strokeWidth={r.strokeWidth}
+                      strokeLinecap="butt"
+                    />
+                  );
+                })}
+              </g>
+            ),
+          )}
+        </svg>
         {labels.map((l) => (
           <div
             key={l.id}

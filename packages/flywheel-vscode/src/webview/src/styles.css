@@ -44,15 +44,19 @@ a:hover {
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.01em;
-  white-space: nowrap;
+  line-height: 1.25;
+  /* Allow wrapping so long titles are visible in full. The triple-layer
+     text-shadow gives a dark halo that keeps the title readable when it
+     overlaps the colored ring/tag border at high zoom. */
+  white-space: normal;
+  overflow-wrap: anywhere;
   text-shadow:
     0 0 6px rgba(0, 0, 0, 0.9),
+    0 0 3px rgba(0, 0, 0, 0.9),
     0 0 2px rgba(0, 0, 0, 0.9);
   pointer-events: none;
   user-select: none;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 260px;
 }
 
 /* Anchor variants. We anchor labels by their LEFT edge (`data-anchor=left`)
@@ -129,8 +133,15 @@ a:hover {
 .flywheel-hover-card__title {
   font-size: 13px;
   font-weight: 600;
-  margin-bottom: 2px;
+  line-height: 1.3;
+  margin-bottom: 4px;
   color: #fff;
+  /* No clamp / no ellipsis — the title is the headline, show it in full
+     even if it wraps to 2-3 lines. `overflow-wrap: anywhere` keeps very
+     long unbroken strings from spilling past the card edge. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .flywheel-hover-card__slug {
@@ -584,11 +595,17 @@ a:hover {
 
 .flywheel-legend__item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  padding: 4px 10px;
+  padding: 5px 10px;
   cursor: pointer;
   user-select: none;
+}
+
+.flywheel-legend__item .flywheel-legend__dot {
+  /* Nudge the dot down a couple of px so it visually centers on the first
+     line of the (possibly multi-line) title. */
+  margin-top: 4px;
 }
 
 .flywheel-legend__item:hover {
@@ -610,8 +627,12 @@ a:hover {
 
 .flywheel-legend__name {
   flex: 1 1 auto;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Show the title in full — wrap to multiple lines rather than truncating
+     with an ellipsis, so users can identify nodes without hovering. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.3;
   font-weight: 500;
+  min-width: 0;
 }
