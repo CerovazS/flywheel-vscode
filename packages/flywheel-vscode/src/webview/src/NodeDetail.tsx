@@ -67,23 +67,30 @@ export function NodeDetail({ initNodeId }: { initNodeId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initNodeId]);
 
-  const html = useMemo(() => {
-    if (!node) return '';
+  const { html, unreferencedImages } = useMemo(() => {
+    if (!node) return { html: '', unreferencedImages: [] as FlywheelArtifact[] };
     const imageMap: Record<string, string> = {};
+    const imageArtifacts: FlywheelArtifact[] = [];
     for (const a of artifacts) {
       if (a.artifact_type === 'image' && a.storage_url) {
         imageMap[a.title] = a.storage_url;
+        imageArtifacts.push(a);
       }
     }
+    const referenced = new Set<string>();
+    let rendered: string;
     try {
-      return renderObsidianMd(node.content ?? '', {
+      rendered = renderObsidianMd(node.content ?? '', {
         imageMap,
         slugResolver: (slug) => slugIndex[slug] ?? null,
+        onImageResolved: (title) => referenced.add(title),
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return `<pre style="color:#ff7b7b">render error: ${msg}</pre>`;
+      rendered = `<pre style="color:#ff7b7b">render error: ${msg}</pre>`;
     }
+    const leftover = imageArtifacts.filter((a) => !referenced.has(a.title));
+    return { html: rendered, unreferencedImages: leftover };
   }, [node, artifacts, slugIndex]);
 
   if (error) {
@@ -179,16 +186,66 @@ export function NodeDetail({ initNodeId }: { initNodeId: string }) {
           />
         </div>
       ) : (
-        <article
-          className="flywheel-md"
-          style={{
-            padding: '20px 28px',
-            maxWidth: 880,
-            margin: '0 auto',
-            lineHeight: 1.55,
-          }}
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
+        <>
+          <article
+            className="flywheel-md"
+            style={{
+              padding: '20px 28px',
+              maxWidth: 880,
+              margin: '0 auto',
+              lineHeight: 1.55,
+            }}
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+          {unreferencedImages.length > 0 ? (
+            <section
+              className="flywheel-figures"
+              style={{
+                padding: '0 28px 28px',
+                maxWidth: 880,
+                margin: '0 auto',
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: 18,
+                  marginTop: 8,
+                  marginBottom: 12,
+                  paddingTop: 16,
+                  borderTop: '1px solid var(--vscode-panel-border, #2e2e2e)',
+                }}
+              >
+                Figures
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {unreferencedImages.map((a) => (
+                  <figure key={a.artifact_id} style={{ margin: 0 }}>
+                    <img
+                      src={a.storage_url ?? ''}
+                      alt={a.title}
+                      style={{
+                        maxWidth: '100%',
+                        height: 'auto',
+                        borderRadius: 4,
+                        display: 'block',
+                      }}
+                    />
+                    <figcaption
+                      style={{
+                        marginTop: 6,
+                        fontSize: 12,
+                        opacity: 0.7,
+                      }}
+                    >
+                      <strong>{a.title}</strong>
+                      {a.note ? ` — ${a.note}` : ''}
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </>
       )}
     </div>
   );

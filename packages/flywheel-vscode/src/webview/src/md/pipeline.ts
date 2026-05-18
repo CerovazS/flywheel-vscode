@@ -40,6 +40,13 @@ export type SlugResolver = (slug: string) => string | null;
 export interface RenderOptions {
   imageMap: Record<string, string>;
   slugResolver: SlugResolver;
+  /**
+   * Optional sink: each image artifact title (case-insensitive lookup key)
+   * resolved against `imageMap` is added here. Callers use this to render a
+   * "Figures" gallery for un-referenced image artifacts without duplicating
+   * what already appears inline.
+   */
+  onImageResolved?: (title: string) => void;
 }
 
 const HIGHLIGHT_RE = /==(.+?)==/g;
@@ -65,23 +72,57 @@ interface WikiLinkNode {
 
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|svg|webp|avif)$/i;
 
-/** Walk mdast and rewrite wikiLink nodes for image embeds and node links. */
+/**
+ * Resolve a bare filename or a `./foo.png` / `attachments/foo.png` path
+ * against the imageMap. Returns the artifact URL on hit, or null.
+ *
+ * Matches:
+ *   - exact title hit (e.g. `loss-curve.png`)
+ *   - case-insensitive fallback (titles in Flywheel can be edited later)
+ *   - basename hit for paths like `figs/loss-curve.png`
+ *
+ * Skips absolute URLs (http:, data:, vscode-webview:) so existing
+ * well-formed image links pass through untouched.
+ */
+function resolveImageUrl(
+  rawUrl: string,
+  imageMap: Record<string, string>,
+): { url: string; matchedTitle: string } | null {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(rawUrl)) return null; // already absolute
+  const stripped = rawUrl.replace(/^\.\//, '');
+  const candidates = [stripped, stripped.split('/').pop() ?? stripped];
+  for (const cand of candidates) {
+    if (imageMap[cand]) return { url: imageMap[cand]!, matchedTitle: cand };
+    // Case-insensitive fallback.
+    const lcKey = cand.toLowerCase();
+    for (const k of Object.keys(imageMap)) {
+      if (k.toLowerCase() === lcKey) return { url: imageMap[k]!, matchedTitle: k };
+    }
+  }
+  return null;
+}
+
+/** Walk mdast and rewrite (a) wikiLink nodes and (b) plain image nodes. */
 function rewriteWikilinks(opts: RenderOptions) {
   return (tree: Root): void => {
     const walk = (nodes: RootContent[]): void => {
       for (let i = 0; i < nodes.length; i++) {
         const n = nodes[i] as unknown;
-        if ((n as { type?: string }).type === 'wikiLink') {
+        const typed = n as { type?: string };
+
+        // Obsidian-flavoured `![[file.png]]` / `[[slug|alias]]`.
+        if (typed.type === 'wikiLink') {
           const link = n as unknown as WikiLinkNode;
           const target = link.value;
           const alias = link.data?.alias ?? target;
 
           if (IMAGE_EXT_RE.test(target)) {
-            const url = opts.imageMap[target];
-            if (url) {
+            const hit = resolveImageUrl(target, opts.imageMap);
+            if (hit) {
+              opts.onImageResolved?.(hit.matchedTitle);
               nodes[i] = {
                 type: 'image',
-                url,
+                url: hit.url,
                 alt: alias,
               } as unknown as RootContent;
               continue;
@@ -103,6 +144,22 @@ function rewriteWikilinks(opts: RenderOptions) {
           } as unknown as RootContent;
           continue;
         }
+
+        // Standard markdown `![alt](file.png)`. If the url is a bare artifact
+        // title (or a relative path matching one), rewrite to the CSP-safe URL.
+        if (typed.type === 'image') {
+          const img = n as { url?: string; alt?: string };
+          if (img.url) {
+            const hit = resolveImageUrl(img.url, opts.imageMap);
+            if (hit) {
+              opts.onImageResolved?.(hit.matchedTitle);
+              img.url = hit.url;
+            }
+          }
+          // No recursion needed — image nodes have no relevant children.
+          continue;
+        }
+
         const children = (n as { children?: RootContent[] }).children;
         if (Array.isArray(children)) walk(children);
       }
