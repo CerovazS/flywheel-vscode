@@ -2,7 +2,7 @@
   "name": "flywheel-vscode",
   "displayName": "Flywheel",
   "description": "Visualize Flywheel knowledge graphs with Obsidian-grade fluidity, repo filtering, live updates, and semantic search.",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "publisher": "cerovazs",
   "icon": "media/icon.png",
   "repository": {

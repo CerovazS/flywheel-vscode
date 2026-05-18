@@ -19,12 +19,14 @@ import {
   type PatchOp,
   diffProjection,
   emptyState,
+  getNode,
   getNodeTree,
 } from 'flywheel-core';
 import { getWebviewHtml } from '../webview-bridge.js';
 import { Poller } from '../polling/poller.js';
 
 const COALESCE_MS = 30;
+const BODY_FETCH_CONCURRENCY = 6;
 
 export class GraphPanel {
   private static current: GraphPanel | undefined;
@@ -34,6 +36,14 @@ export class GraphPanel {
   private poller: Poller | null = null;
   private pendingOps: PatchOp[] = [];
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Tree-projection fingerprint of each node the last time we fetched its body
+   * (content + summary). When the live fingerprint changes we refetch.
+   * Tree projection drops content/summary, so the webview can't render a
+   * TL;DR preview without this eager enrichment. */
+  private bodyFingerprints: Map<string, string> = new Map();
+  /** Latest enrichment run id; in-flight fetches with a stale id are dropped
+   * so a quick reload doesn't race against an older snapshot. */
+  private enrichRunId = 0;
 
   static currentInstance(): GraphPanel | undefined {
     return GraphPanel.current;
@@ -91,6 +101,7 @@ export class GraphPanel {
       const cur = GraphPanel.current;
       cur.rootNodeId = rootNodeId;
       cur.prev = emptyState();
+      cur.bodyFingerprints.clear();
       cur.panel.reveal();
       await cur.loadAndSnapshot();
       cur.startPolling();
@@ -202,6 +213,10 @@ export class GraphPanel {
         nodeCount: tree.nodes.length,
         rootSlug: rootNode?.slug_name ?? null,
       });
+      // Fire-and-forget: pull content + summary for every node so the webview's
+      // hover preview can extract the TL;DR callout. The tree projection
+      // strips both fields.
+      void this.enrichBodies(tree.nodes.map((n) => n.node_id));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.send({ kind: 'error', message: msg });
@@ -240,6 +255,75 @@ export class GraphPanel {
     this.lastEdges = tree.edges;
     if (ops.length === 0) return;
     this.queueOps(ops);
+    // Refetch bodies only for nodes that the diff touched (add/update). The
+    // body cache is keyed by tree fingerprint, so unchanged nodes are skipped
+    // inside enrichBodies even if we pass them.
+    const touched: string[] = [];
+    for (const op of ops) {
+      if (op.op === 'addNode') touched.push(op.node.node_id);
+      else if (op.op === 'updateNode') touched.push(op.nodeId);
+    }
+    if (touched.length > 0) void this.enrichBodies(touched);
+  }
+
+  /**
+   * Fetch full node bodies (content + summary) for the given ids and forward
+   * them to the webview as `updateNode` patch ops. Skips ids whose tree
+   * fingerprint matches the last successful fetch — repeated polls won't
+   * thrash the server.
+   *
+   * Runs concurrent up to BODY_FETCH_CONCURRENCY. A new call cancels in-flight
+   * results from previous calls via `enrichRunId` so a fast reload doesn't
+   * push stale bodies onto a newer snapshot.
+   */
+  private async enrichBodies(nodeIds: string[]): Promise<void> {
+    const runId = ++this.enrichRunId;
+    const queue: string[] = [];
+    for (const id of nodeIds) {
+      const fp = this.prev.fingerprints.get(id);
+      if (fp === undefined) continue;
+      if (this.bodyFingerprints.get(id) === fp) continue;
+      queue.push(id);
+    }
+    if (queue.length === 0) return;
+
+    const workers: Promise<void>[] = [];
+    const limit = Math.min(BODY_FETCH_CONCURRENCY, queue.length);
+    for (let i = 0; i < limit; i++) {
+      workers.push(
+        (async () => {
+          while (queue.length > 0) {
+            const id = queue.shift();
+            if (!id) break;
+            if (runId !== this.enrichRunId) return;
+            try {
+              const node = await getNode(this.client, id);
+              if (runId !== this.enrichRunId) return;
+              const fpNow = this.prev.fingerprints.get(id);
+              if (fpNow === undefined) continue;
+              this.bodyFingerprints.set(id, fpNow);
+              const existing = this.lastNodes.get(id);
+              if (existing) {
+                existing.content = node.content;
+                existing.summary = node.summary;
+              }
+              this.queueOps([
+                {
+                  op: 'updateNode',
+                  nodeId: id,
+                  partial: { content: node.content, summary: node.summary },
+                },
+              ]);
+            } catch {
+              // Network/MCP error for a single node is non-fatal — the hover
+              // preview will fall back to the slug/title, and the next diff
+              // tick will re-queue this id.
+            }
+          }
+        })(),
+      );
+    }
+    await Promise.all(workers);
   }
 
   /**
