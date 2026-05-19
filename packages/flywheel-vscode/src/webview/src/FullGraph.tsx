@@ -161,8 +161,8 @@ interface RenderedLabel {
   x: number;
   y: number;
   color: string;
-  /** 'left' | 'right' | 'center' — which side of the label is anchored at (x,y). */
-  anchor: 'left' | 'right' | 'center';
+  /** 'left' | 'right' — which side of the label sits at (x, y) on screen. */
+  anchor: 'left' | 'right';
 }
 
 interface RenderedRing {
@@ -357,10 +357,13 @@ export function FullGraph() {
       const r = buf.colors[4 * i]!;
       const gC = buf.colors[4 * i + 1]!;
       const b = buf.colors[4 * i + 2]!;
-      // Anchor by node's horizontal position so labels never spill off-screen.
+      // Always render labels to one *side* of the node, never above it.
+      // Right-of-node for nodes in the left two-thirds of the canvas,
+      // left-of-node for the right third. This guarantees labels never
+      // overlap the node dot or its tag ring, and keeps the layout legible
+      // when many nodes share a horizontal band.
       const xFrac = sx / w;
-      const anchor: 'left' | 'right' | 'center' =
-        xFrac < 0.3 ? 'left' : xFrac > 0.7 ? 'right' : 'center';
+      const anchor: 'left' | 'right' = xFrac > 0.66 ? 'right' : 'left';
       out.push({
         id,
         title: node.title ?? node.slug_name ?? id.slice(0, 8),

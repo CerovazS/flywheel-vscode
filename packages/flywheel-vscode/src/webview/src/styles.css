@@ -42,7 +42,7 @@ a:hover {
 .flywheel-node-label {
   position: absolute;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 450;
   letter-spacing: 0.01em;
   line-height: 1.25;
   white-space: normal;
@@ -52,10 +52,10 @@ a:hover {
    * stay defined but thin. Labels are NEVER colored by the node tag —
    * doing that made dark-hued tags (root `#540B0E`, insight `#335C67`)
    * invisible against the dark canvas. */
-  color: #ffffff;
+  color: #f4f1de;
   text-shadow:
-    0 0 1px rgba(0, 0, 0, 0.95),
-    0 0 1px rgba(0, 0, 0, 0.95);
+    0 0 1px rgba(0, 0, 0, 0.9),
+    0 0 1px rgba(0, 0, 0, 0.9);
   pointer-events: none;
   user-select: none;
   max-width: 260px;
@@ -63,31 +63,26 @@ a:hover {
 
 /* Light graph theme: black text + thin cream halo. */
 [data-graph-theme='light'] .flywheel-node-label {
-  color: #111111;
+  color: #1c1b19;
   text-shadow:
     0 0 1px rgba(245, 245, 240, 0.98),
     0 0 1px rgba(245, 245, 240, 0.98);
 }
 
-/* Anchor variants. We anchor labels by their LEFT edge (`data-anchor=left`)
- * for nodes on the left half of the canvas, by their RIGHT edge for the
- * right half, and ABOVE for the center band. This guarantees long titles
- * never spill past the visible viewport, and — critically — the label box
- * never sits on top of the node dot (which would make a light-coloured
- * label invisible against a light-coloured node, e.g. the cream `root`
- * tag). The 16px gap clears the node radius at any reasonable zoom; the
- * dark text-shadow halo handles the rest. */
+/* Anchor variants. Labels always sit to the *side* of a node, never above
+ * it. `data-anchor=left` anchors the label's LEFT edge at (x, y) — the
+ * label extends rightwards, used for nodes in the left two-thirds of the
+ * canvas. `data-anchor=right` anchors the label's RIGHT edge at (x, y) —
+ * the label extends leftwards, used for nodes in the right third (so long
+ * titles never spill past the visible edge). The 18px horizontal gap
+ * clears the node dot + its tag ring at any reasonable zoom. */
 .flywheel-node-label[data-anchor='left'] {
-  transform: translate(16px, -50%);
+  transform: translate(18px, -50%);
   text-align: left;
 }
 .flywheel-node-label[data-anchor='right'] {
-  transform: translate(calc(-100% - 16px), -50%);
+  transform: translate(calc(-100% - 18px), -50%);
   text-align: right;
-}
-.flywheel-node-label[data-anchor='center'] {
-  transform: translate(-50%, calc(-100% - 14px));
-  text-align: center;
 }
 
 .flywheel-mini-label {
