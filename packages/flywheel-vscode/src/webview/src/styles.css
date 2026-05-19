@@ -45,18 +45,42 @@ a:hover {
   font-weight: 500;
   letter-spacing: 0.01em;
   line-height: 1.25;
-  /* Allow wrapping so long titles are visible in full. The triple-layer
-     text-shadow gives a dark halo that keeps the title readable when it
-     overlaps the colored ring/tag border at high zoom. */
+  /* Crisp 1px outline via 8-direction zero-blur text-shadow. This gives a
+     defined contour around the glyphs (no soft glow that would wash the
+     colored fill into the background). The outline color flips with the
+     active graph theme — see [data-graph-theme="light"] override below.
+     Dark theme baseline: WHITE outline so colored labels read against the
+     dark canvas. */
   white-space: normal;
   overflow-wrap: anywhere;
   text-shadow:
-    0 0 6px rgba(0, 0, 0, 0.9),
-    0 0 3px rgba(0, 0, 0, 0.9),
-    0 0 2px rgba(0, 0, 0, 0.9);
+    -1px -1px 0 #ffffff,
+    0px -1px 0 #ffffff,
+    1px -1px 0 #ffffff,
+    -1px 0px 0 #ffffff,
+    1px 0px 0 #ffffff,
+    -1px 1px 0 #ffffff,
+    0px 1px 0 #ffffff,
+    1px 1px 0 #ffffff;
   pointer-events: none;
   user-select: none;
   max-width: 260px;
+}
+
+/* Light graph theme: override the inline node color so labels stay readable
+ * against the cream background, and flip the outline to dark for the same
+ * crisp contour effect against the light backdrop. */
+[data-graph-theme='light'] .flywheel-node-label {
+  color: #111111 !important;
+  text-shadow:
+    -1px -1px 0 #f5f5f0,
+    0px -1px 0 #f5f5f0,
+    1px -1px 0 #f5f5f0,
+    -1px 0px 0 #f5f5f0,
+    1px 0px 0 #f5f5f0,
+    -1px 1px 0 #f5f5f0,
+    0px 1px 0 #f5f5f0,
+    1px 1px 0 #f5f5f0;
 }
 
 /* Anchor variants. We anchor labels by their LEFT edge (`data-anchor=left`)
@@ -85,15 +109,38 @@ a:hover {
   font-size: 10px;
   font-weight: 500;
   color: var(--vscode-foreground, #ddd);
+  /* Crisp 1px outline, same approach as .flywheel-node-label. Dark VS Code
+   * theme baseline: white outline. Light theme override below. */
   text-shadow:
-    0 0 4px rgba(0, 0, 0, 0.9),
-    0 0 2px rgba(0, 0, 0, 0.9);
+    -1px -1px 0 #ffffff,
+    1px -1px 0 #ffffff,
+    -1px 1px 0 #ffffff,
+    1px 1px 0 #ffffff,
+    0px -1px 0 #ffffff,
+    0px 1px 0 #ffffff,
+    -1px 0px 0 #ffffff,
+    1px 0px 0 #ffffff;
   pointer-events: none;
   user-select: none;
   max-width: 130px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* VS Code light theme: mini-graph background uses --vscode-sideBar-background
+ * (light), so flip mini-label text to dark with a light hard outline. */
+body.vscode-light .flywheel-mini-label {
+  color: #111111;
+  text-shadow:
+    -1px -1px 0 #f5f5f0,
+    1px -1px 0 #f5f5f0,
+    -1px 1px 0 #f5f5f0,
+    1px 1px 0 #f5f5f0,
+    0px -1px 0 #f5f5f0,
+    0px 1px 0 #f5f5f0,
+    -1px 0px 0 #f5f5f0,
+    1px 0px 0 #f5f5f0;
 }
 
 .flywheel-mini-label[data-anchor='left'] {

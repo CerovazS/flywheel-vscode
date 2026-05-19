@@ -58,3 +58,21 @@ export function rgbaToCss(c: Rgba, alpha?: number): string {
   const a = alpha ?? c[3] / 255;
   return `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
 }
+
+/** Darken a base RGBA for display on a light graph background.
+ *
+ * Multiplies RGB by a fixed factor so dots become deeply saturated dark
+ * versions of their tag/category color. Hue identity is preserved enough
+ * to keep distinct categories distinguishable (e.g. dark teal vs dark wine
+ * vs dark amber), but the resulting value is dark enough to read against
+ * the cream `#f5f5f0` graph background. Alpha is kept intact.
+ */
+export function darkenForLight(rgba: Rgba): Rgba {
+  const factor = 0.32;
+  return [
+    Math.round(rgba[0] * factor),
+    Math.round(rgba[1] * factor),
+    Math.round(rgba[2] * factor),
+    rgba[3],
+  ];
+}

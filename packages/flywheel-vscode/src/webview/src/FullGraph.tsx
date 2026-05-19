@@ -19,7 +19,7 @@ import { Graph, type GraphConfigInterface } from '@cosmograph/cosmos';
 import type { FlywheelEdge, FlywheelNode } from 'flywheel-core/client';
 import { normalizeRepoUrl } from 'flywheel-core/repo';
 import { useStore } from './store.js';
-import { nodeColor, rgbaToCss } from './colors.js';
+import { darkenForLight, nodeColor, rgbaToCss } from './colors.js';
 import { computeLayout } from './layout.js';
 import { send } from './vscode.js';
 
@@ -206,6 +206,42 @@ function arcPath(
   return `M ${sx} ${sy} A ${r} ${r} 0 ${largeArc} 1 ${ex} ${ey}`;
 }
 
+type GraphTheme = 'auto' | 'light' | 'dark';
+
+const THEME_STORAGE_KEY = 'flywheel.graphTheme';
+
+function readStoredTheme(): GraphTheme {
+  try {
+    const raw = globalThis.localStorage?.getItem(THEME_STORAGE_KEY);
+    if (raw === 'light' || raw === 'dark' || raw === 'auto') return raw;
+  } catch {
+    // localStorage may be unavailable in the webview sandbox; fall through.
+  }
+  return 'auto';
+}
+
+function persistTheme(theme: GraphTheme): void {
+  try {
+    globalThis.localStorage?.setItem(THEME_STORAGE_KEY, theme);
+  } catch {
+    // best-effort; the toggle still works in-session if storage is sandboxed.
+  }
+}
+
+/** Resolve user-selected theme into the concrete background color. */
+function themeBackground(theme: GraphTheme): string {
+  if (theme === 'light') return '#f5f5f0';
+  if (theme === 'dark') return '#111';
+  // 'auto' = follow VS Code editor theme; fall back to dark if the var is missing.
+  return 'var(--vscode-editor-background, #111)';
+}
+
+/** Resolve VS Code's current editor kind from the body class set by the host. */
+function resolveVscodeTheme(): 'light' | 'dark' {
+  if (typeof document === 'undefined') return 'dark';
+  return document.body.classList.contains('vscode-light') ? 'light' : 'dark';
+}
+
 export function FullGraph() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<Graph | null>(null);
@@ -215,6 +251,26 @@ export function FullGraph() {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [labels, setLabels] = useState<RenderedLabel[]>([]);
   const [rings, setRings] = useState<RenderedRing[]>([]);
+  const [theme, setTheme] = useState<GraphTheme>(() => readStoredTheme());
+  const [vscodeTheme, setVscodeTheme] = useState<'light' | 'dark'>(
+    () => resolveVscodeTheme(),
+  );
+
+  useEffect(() => {
+    persistTheme(theme);
+  }, [theme]);
+
+  // Track VS Code theme changes so `auto` updates without a page reload.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const update = (): void => setVscodeTheme(resolveVscodeTheme());
+    const mo = new MutationObserver(update);
+    mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => mo.disconnect();
+  }, []);
+
+  const effectiveTheme: 'light' | 'dark' =
+    theme === 'auto' ? vscodeTheme : theme;
   const nodes = useStore((s) => s.graph.nodes);
   const edgeList = useStore((s) => s.graph.edgeList);
   const repoFilter = useStore((s) => s.ui.repoFilter);
@@ -432,6 +488,9 @@ export function FullGraph() {
     const next = buildBuffers(filteredNodes, edgeList, prevPositions);
     buffersRef.current = next;
     g.setPointPositions(next.positions);
+    // Point colors here are the *base* (bright) buffer. The theme-driven
+    // effect below remaps them to a dark display palette when the graph is
+    // in light mode.
     g.setPointColors(next.colors);
     g.setPointSizes(next.sizes);
     g.setLinks(next.links);
@@ -466,6 +525,37 @@ export function FullGraph() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topologyKey]);
+
+  // Theme-driven recolor: in light mode, darken node fills + links so they
+  // read against the cream background. We re-derive a display buffer from
+  // the base (bright) `buf.colors`, leaving the buffer itself untouched so
+  // the legend panel keeps showing the true tag color as a visual key.
+  useEffect(() => {
+    const g = graphRef.current;
+    const buf = buffersRef.current;
+    if (!g || !buf) return;
+    if (effectiveTheme === 'light') {
+      const display = new Float32Array(buf.colors.length);
+      for (let i = 0; i < buf.colors.length; i += 4) {
+        const dark = darkenForLight([
+          buf.colors[i]!,
+          buf.colors[i + 1]!,
+          buf.colors[i + 2]!,
+          buf.colors[i + 3]!,
+        ]);
+        display[i] = dark[0];
+        display[i + 1] = dark[1];
+        display[i + 2] = dark[2];
+        display[i + 3] = dark[3];
+      }
+      g.setPointColors(display);
+      g.setConfig({ linkColor: 'rgba(60, 60, 70, 0.55)' });
+    } else {
+      g.setPointColors(buf.colors);
+      g.setConfig({ linkColor: 'rgba(220, 220, 230, 0.42)' });
+    }
+    g.render(0);
+  }, [effectiveTheme, topologyKey]);
 
   // Re-anchor labels when filter / selection changes.
   useEffect(() => {
@@ -560,10 +650,12 @@ export function FullGraph() {
         style={{
           position: 'absolute',
           inset: 0,
-          background: 'var(--vscode-editor-background, #111)',
+          background: themeBackground(theme),
         }}
       />
+      <ThemeToggle theme={theme} onChange={setTheme} />
       <div
+        data-graph-theme={effectiveTheme}
         style={{
           position: 'absolute',
           inset: 0,
@@ -638,6 +730,55 @@ export function FullGraph() {
         onPick={onLegendClick}
       />
     </>
+  );
+}
+
+function ThemeToggle({
+  theme,
+  onChange,
+}: {
+  theme: GraphTheme;
+  onChange: (next: GraphTheme) => void;
+}) {
+  // Cycle: auto → light → dark → auto.
+  const next: GraphTheme =
+    theme === 'auto' ? 'light' : theme === 'light' ? 'dark' : 'auto';
+  const glyph = theme === 'light' ? '☀' : theme === 'dark' ? '☾' : '⊙';
+  const label =
+    theme === 'auto'
+      ? 'Theme: follow editor'
+      : theme === 'light'
+        ? 'Theme: light'
+        : 'Theme: dark';
+  return (
+    <button
+      type="button"
+      className="flywheel-theme-toggle"
+      aria-label={`${label} (click to switch to ${next})`}
+      title={`${label} — click to switch to ${next}`}
+      onClick={() => onChange(next)}
+      style={{
+        position: 'absolute',
+        top: 12,
+        right: 12,
+        width: 32,
+        height: 32,
+        borderRadius: 6,
+        border: '1px solid rgba(160, 160, 170, 0.35)',
+        background: 'rgba(40, 40, 50, 0.55)',
+        color: '#fff3b0',
+        cursor: 'pointer',
+        fontSize: 16,
+        lineHeight: '30px',
+        textAlign: 'center',
+        padding: 0,
+        zIndex: 20,
+        pointerEvents: 'auto',
+        backdropFilter: 'blur(4px)',
+      }}
+    >
+      {glyph}
+    </button>
   );
 }
 
