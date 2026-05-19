@@ -30,16 +30,58 @@ interface RawTreeResponse {
   max_depth?: number;
 }
 
+interface RawGraphResponse {
+  nodes_by_id?: Record<string, Pick<FlywheelNode, 'graph_tags' | 'tag_ids'>>;
+}
+
+/**
+ * Hydrate tree nodes with the assigned-tag list (= graph_tags catalog
+ * intersected with tag_ids). `flywheel_get_node_tree` only returns minimal
+ * topology (`node_id`, `title`, `depth`, `lane`, `is_root`, `outgoing_ids`,
+ * `incoming_ids`) so it can't drive the tag-ring overlay on its own. We
+ * fetch the same anchor via `flywheel_get_graph`, which DOES carry
+ * `graph_tags` (full per-root catalog) + `tag_ids` (assignments) for every
+ * node, and project the catalog down to the assigned subset per node. The
+ * renderer then treats `node.graph_tags` as "tags actually on this node".
+ */
 export async function getNodeTree(
   client: FlywheelMcpClient,
   nodeId: string,
 ): Promise<NodeTreeProjection> {
-  const raw = await client.callTool<RawTreeResponse>('flywheel_get_node_tree', {
-    node_id: nodeId,
+  const [raw, graph] = await Promise.all([
+    client.callTool<RawTreeResponse>('flywheel_get_node_tree', {
+      node_id: nodeId,
+    }),
+    client
+      .callTool<RawGraphResponse>('flywheel_get_graph', {
+        node_id: nodeId,
+        projection: 'topology',
+        page_size: 1000,
+      })
+      .catch(() => ({}) as RawGraphResponse),
+  ]);
+
+  const byId = graph?.nodes_by_id ?? {};
+  // Fallback catalog: newer nodes occasionally come back from the server
+  // with `tag_ids` populated but `graph_tags` (the per-root tag catalog)
+  // empty. When that happens, project against the root's catalog instead —
+  // root almost always has the full catalog hydrated.
+  const rootIdForCatalog = raw.root_node_ids[0] ?? raw.anchor_node_id;
+  const rootCatalog = byId[rootIdForCatalog]?.graph_tags ?? [];
+
+  const hydratedNodes: FlywheelNode[] = raw.nodes.map((n) => {
+    const tagInfo = byId[n.node_id];
+    if (!tagInfo) return n;
+    const perNodeCatalog = tagInfo.graph_tags ?? [];
+    const catalog = perNodeCatalog.length > 0 ? perNodeCatalog : rootCatalog;
+    const assigned = new Set(tagInfo.tag_ids ?? []);
+    const assignedTags = catalog.filter((t) => assigned.has(t.tag_id));
+    return { ...n, graph_tags: assignedTags, tag_ids: tagInfo.tag_ids ?? [] };
   });
+
   const seen = new Set<string>();
   const edges: FlywheelEdge[] = [];
-  for (const n of raw.nodes) {
+  for (const n of hydratedNodes) {
     for (const child of n.outgoing_ids ?? []) {
       const key = `${n.node_id}->${child}`;
       if (seen.has(key)) continue;
@@ -48,7 +90,7 @@ export async function getNodeTree(
     }
   }
   const rootId = raw.root_node_ids[0] ?? raw.anchor_node_id;
-  return { root_id: rootId, nodes: raw.nodes, edges };
+  return { root_id: rootId, nodes: hydratedNodes, edges };
 }
 
 interface RawListResponse {

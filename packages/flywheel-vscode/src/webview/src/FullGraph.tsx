@@ -339,8 +339,12 @@ export function FullGraph() {
           id,
           x: sx,
           y: sy,
-          radius: screenRadius + 4,
-          strokeWidth: 3,
+          // Ring straddles the dot edge: half overlaps the dot, half
+          // extends outward. Kept thick enough (5px stroke) to read as a
+          // visible colored band even at low zoom, and the half-overlap
+          // eliminates any gap between dot fill and ring.
+          radius: screenRadius + 2,
+          strokeWidth: 5,
           tags: assignedTags.map((t) => ({ color: t.bg_color ?? '#888' })),
         });
       }
@@ -380,9 +384,10 @@ export function FullGraph() {
       backgroundColor: 'transparent',
       pointSize: 7,
       pointSizeScale: 1.0,
-      // Brighter, slightly thicker links so the graph topology is visible
-      // without zooming. The default obsidian-grey was too low-contrast.
-      linkColor: 'rgba(220, 220, 230, 0.42)',
+      // Bright, opaque-ish links so the graph topology is visible without
+      // zooming. The theme effect remaps this to a dark equivalent when
+      // light mode is active.
+      linkColor: 'rgba(255, 255, 255, 0.7)',
       linkWidth: 1.4,
       linkArrows: false,
       curvedLinks: true,
@@ -549,10 +554,10 @@ export function FullGraph() {
         display[i + 3] = dark[3];
       }
       g.setPointColors(display);
-      g.setConfig({ linkColor: 'rgba(60, 60, 70, 0.55)' });
+      g.setConfig({ linkColor: 'rgba(20, 20, 30, 0.75)' });
     } else {
       g.setPointColors(buf.colors);
-      g.setConfig({ linkColor: 'rgba(220, 220, 230, 0.42)' });
+      g.setConfig({ linkColor: 'rgba(255, 255, 255, 0.7)' });
     }
     g.render(0);
   }, [effectiveTheme, topologyKey]);
@@ -712,7 +717,7 @@ export function FullGraph() {
             key={l.id}
             className="flywheel-node-label"
             data-anchor={l.anchor}
-            style={{ left: l.x, top: l.y, color: l.color }}
+            style={{ left: l.x, top: l.y }}
           >
             {l.title}
           </div>

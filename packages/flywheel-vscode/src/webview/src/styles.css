@@ -42,45 +42,31 @@ a:hover {
 .flywheel-node-label {
   position: absolute;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.01em;
   line-height: 1.25;
-  /* Crisp 1px outline via 8-direction zero-blur text-shadow. This gives a
-     defined contour around the glyphs (no soft glow that would wash the
-     colored fill into the background). The outline color flips with the
-     active graph theme — see [data-graph-theme="light"] override below.
-     Dark theme baseline: WHITE outline so colored labels read against the
-     dark canvas. */
   white-space: normal;
   overflow-wrap: anywhere;
+  /* Dark theme baseline: white fill, thin 1px black halo for separation
+   * against any overlapping ring or dot. The halo blur is small enough to
+   * stay defined but thin. Labels are NEVER colored by the node tag —
+   * doing that made dark-hued tags (root `#540B0E`, insight `#335C67`)
+   * invisible against the dark canvas. */
+  color: #ffffff;
   text-shadow:
-    -1px -1px 0 #ffffff,
-    0px -1px 0 #ffffff,
-    1px -1px 0 #ffffff,
-    -1px 0px 0 #ffffff,
-    1px 0px 0 #ffffff,
-    -1px 1px 0 #ffffff,
-    0px 1px 0 #ffffff,
-    1px 1px 0 #ffffff;
+    0 0 1px rgba(0, 0, 0, 0.95),
+    0 0 1px rgba(0, 0, 0, 0.95);
   pointer-events: none;
   user-select: none;
   max-width: 260px;
 }
 
-/* Light graph theme: override the inline node color so labels stay readable
- * against the cream background, and flip the outline to dark for the same
- * crisp contour effect against the light backdrop. */
+/* Light graph theme: black text + thin cream halo. */
 [data-graph-theme='light'] .flywheel-node-label {
-  color: #111111 !important;
+  color: #111111;
   text-shadow:
-    -1px -1px 0 #f5f5f0,
-    0px -1px 0 #f5f5f0,
-    1px -1px 0 #f5f5f0,
-    -1px 0px 0 #f5f5f0,
-    1px 0px 0 #f5f5f0,
-    -1px 1px 0 #f5f5f0,
-    0px 1px 0 #f5f5f0,
-    1px 1px 0 #f5f5f0;
+    0 0 1px rgba(245, 245, 240, 0.98),
+    0 0 1px rgba(245, 245, 240, 0.98);
 }
 
 /* Anchor variants. We anchor labels by their LEFT edge (`data-anchor=left`)
@@ -107,19 +93,12 @@ a:hover {
 .flywheel-mini-label {
   position: absolute;
   font-size: 10px;
-  font-weight: 500;
-  color: var(--vscode-foreground, #ddd);
-  /* Crisp 1px outline, same approach as .flywheel-node-label. Dark VS Code
-   * theme baseline: white outline. Light theme override below. */
+  font-weight: 600;
+  /* White fill + thin black halo for dark VS Code themes. */
+  color: #ffffff;
   text-shadow:
-    -1px -1px 0 #ffffff,
-    1px -1px 0 #ffffff,
-    -1px 1px 0 #ffffff,
-    1px 1px 0 #ffffff,
-    0px -1px 0 #ffffff,
-    0px 1px 0 #ffffff,
-    -1px 0px 0 #ffffff,
-    1px 0px 0 #ffffff;
+    0 0 1px rgba(0, 0, 0, 0.95),
+    0 0 1px rgba(0, 0, 0, 0.95);
   pointer-events: none;
   user-select: none;
   max-width: 130px;
@@ -128,19 +107,12 @@ a:hover {
   text-overflow: ellipsis;
 }
 
-/* VS Code light theme: mini-graph background uses --vscode-sideBar-background
- * (light), so flip mini-label text to dark with a light hard outline. */
+/* VS Code light theme: black text + thin cream halo. */
 body.vscode-light .flywheel-mini-label {
   color: #111111;
   text-shadow:
-    -1px -1px 0 #f5f5f0,
-    1px -1px 0 #f5f5f0,
-    -1px 1px 0 #f5f5f0,
-    1px 1px 0 #f5f5f0,
-    0px -1px 0 #f5f5f0,
-    0px 1px 0 #f5f5f0,
-    -1px 0px 0 #f5f5f0,
-    1px 0px 0 #f5f5f0;
+    0 0 1px rgba(245, 245, 240, 0.98),
+    0 0 1px rgba(245, 245, 240, 0.98);
 }
 
 .flywheel-mini-label[data-anchor='left'] {
